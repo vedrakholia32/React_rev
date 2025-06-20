@@ -1,19 +1,44 @@
 import MovieCard from "../components/MovieCard.jsx";
-import { useState } from "react";
-import "../css/Home.css"
+import { useEffect, useState } from "react";
+import { searchMovies, getPopularMovies } from "../services/api.js";
+import "../css/Home.css";
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [movies, setMovies] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const movies = [
-    { id: 1, title: "john Wick", release_date: "2020" },
-    { id: 2, title: "Terminator", release_date: "1999" },
-    { id: 3, title: "The Matrix", release_date: "1998" },
-  ];
+  useEffect(() => {
+    const loadPopularMovies = async () => {
+      try {
+        const popularMovies = await getPopularMovies();
+        setMovies(Array.isArray(popularMovies) ? popularMovies : []);
+      } catch (err) {
+        setError("Failed to fetch movies");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPopularMovies();
+  }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    alert(searchQuery);
+    if (!searchQuery.trim()) return;
+    if (loading) return; // Prevent search while loading
+
+    setLoading(true);
+    try {
+      const searchResults = await searchMovies(searchQuery);
+      setMovies(Array.isArray(searchResults) ? searchResults : []);
+      setError(null);
+    } catch (err) {
+      console.log(err);
+      setError("Failed to fetch search results");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,12 +55,17 @@ function Home() {
           Search
         </button>
       </form>
+      {error && <div className="error-message">{error}</div>}
 
-      <div className="movies-grid">
-        {movies.map((movie) => (
-          <MovieCard movie={movie} key={movie.id} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="loading">Loading...</div>
+      ) : (
+        <div className="movies-grid">
+          {(movies || []).map((movie) => (
+            <MovieCard movie={movie} key={movie.id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
